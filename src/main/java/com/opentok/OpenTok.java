@@ -7,19 +7,21 @@
  */
 package com.opentok;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectReader;
 import com.opentok.exception.InvalidArgumentException;
 import com.opentok.exception.OpenTokException;
 import com.opentok.exception.RequestException;
 import com.opentok.util.Crypto;
-import com.opentok.util.HttpClient;
-import com.opentok.util.HttpClient.ProxyAuthScheme;
+import com.opentok.util.OpenTokHttpClient;
+import io.vertx.core.AsyncResult;
+import io.vertx.core.Future;
+import io.vertx.core.Handler;
+import io.vertx.core.Vertx;
+import io.vertx.core.http.HttpClientOptions;
 
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
-import java.net.Proxy;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -38,14 +40,14 @@ public class OpenTok {
 
     private int apiKey;
     private String apiSecret;
-    protected HttpClient client;
+    protected OpenTokHttpClient client;
+    protected Vertx vertx;
     static protected ObjectReader archiveReader = new ObjectMapper()
             .readerFor(Archive.class);
     static protected ObjectReader archiveListReader = new ObjectMapper()
             .readerFor(ArchiveList.class);
     static protected ObjectReader createdSessionReader = new ObjectMapper()
             .readerFor(CreatedSession[].class);
-    static final String defaultApiUrl = "https://api.opentok.com";
 
     /**
      * Creates an OpenTok object.
@@ -53,16 +55,33 @@ public class OpenTok {
      * @param apiKey Your OpenTok API key. (See your <a href="https://tokbox.com/account">TokBox account page</a>.)
      * @param apiSecret Your OpenTok API secret. (See your <a href="https://tokbox.com/account">TokBox account page</a>.)
      */
-    public OpenTok(int apiKey, String apiSecret) {
+    public OpenTok(int apiKey, String apiSecret, Vertx vertx) {
         this.apiKey = apiKey;
         this.apiSecret = apiSecret.trim();
-        this.client = new HttpClient.Builder(apiKey, apiSecret).build();
+        this.vertx = vertx;
+        this.client = new OpenTokHttpClient.Builder(apiKey, apiSecret, vertx).build();
     }
-    
-    private OpenTok(int apiKey, String apiSecret, HttpClient httpClient) {
+
+    private OpenTok(int apiKey, String apiSecret, Vertx vertx, OpenTokHttpClient httpClient) {
         this.apiKey = apiKey;
         this.apiSecret = apiSecret.trim();
+        this.vertx = vertx;
         this.client = httpClient;
+    }
+
+    private <T> Handler<AsyncResult<String>> handleResponse(Handler<AsyncResult<T>> handler, ObjectReader reader) {
+        return response -> {
+            if (response.failed()) {
+                handler.handle(Future.failedFuture(response.cause()));
+            } else {
+                String archives = response.result();
+                try {
+                    handler.handle(Future.succeededFuture(reader.readValue(archives)));
+                } catch (Exception e) {
+                    handler.handle(Future.failedFuture(new RequestException("Exception mapping json: " + e.getMessage(), e)));
+                }
+            }
+        };
     }
 
     /**
@@ -116,7 +135,7 @@ public class OpenTok {
      */
     public String generateToken(String sessionId, TokenOptions tokenOptions) throws OpenTokException {
         List<String> sessionIdParts = null;
-        if (sessionId == null || sessionId == "") {
+        if (sessionId == null || "".equals(sessionId)) {
             throw new InvalidArgumentException("Session not valid");
         }
 
@@ -228,25 +247,31 @@ public class OpenTok {
      *    <li>A location hint for the location of the OpenTok server to use for the session.</li>
      * </ul>
      *
-     * @return A Session object representing the new session. Call the <code>getSessionId()</code>
+     * Calls handler with: A Session object representing the new session. Call the <code>getSessionId()</code>
      * method of the Session object to get the session ID, which uniquely identifies the
      * session. You will use this session ID in the client SDKs to identify the session.
      */
-    public Session createSession(SessionProperties properties) throws OpenTokException {
+    public void createSession(SessionProperties properties, Handler<AsyncResult<Session>> handler) {
         final SessionProperties _properties = properties != null ? properties : new SessionProperties.Builder().build();
         final Map<String, Collection<String>> params = _properties.toMap();
-        final String response = this.client.createSession(params);
-
-        try {
-            CreatedSession[] sessions = createdSessionReader.readValue(response);
-            // A bit ugly, but API response should include an array with one session
-            if (sessions.length != 1) {
-                throw new OpenTokException(String.format("Unexpected number of sessions created %d", sessions.length));
+        this.client.createSession(params, response -> {
+            if (response.failed()) {
+                handler.handle(Future.failedFuture(response.cause()));
+            } else {
+                String result = response.result();
+                try {
+                    CreatedSession[] sessions = createdSessionReader.readValue(result);
+                    // A bit ugly, but API response should include an array with one session
+                    if (sessions.length != 1) {
+                        handler.handle(Future.failedFuture(new OpenTokException(String.format("Unexpected number of sessions created %d", sessions.length))));
+                    } else {
+                        handler.handle(Future.succeededFuture(new Session(sessions[0].getId(), apiKey, apiSecret, _properties)));
+                    }
+                } catch (IOException e) {
+                    handler.handle(Future.failedFuture(new OpenTokException("Cannot create session. Could not read the response: " + result, e)));
+                }
             }
-            return new Session(sessions[0].getId(), apiKey, apiSecret, _properties);
-        } catch (IOException e) {
-            throw new OpenTokException("Cannot create session. Could not read the response: " + response);
-        }
+        });
     }
 
     /**
@@ -281,42 +306,36 @@ public class OpenTok {
      * }
      * </pre>
      *
-     * @return A Session object representing the new session. Call the <code>getSessionId()</code>
+     * Calls handler with: A Session object representing the new session. Call the <code>getSessionId()</code>
      * method of the Session object to get the session ID, which uniquely identifies the
      * session. You will use this session ID in the client SDKs to identify the session.
      *
-     * @see #createSession(SessionProperties)
+     * @see #createSession(SessionProperties, Handler)
      */
-    public Session createSession() throws OpenTokException {
-        return createSession(null);
+    public void createSession(Handler<AsyncResult<Session>> handler) {
+        createSession(null, handler);
     }
 
     /**
      * Gets an {@link Archive} object for the given archive ID.
      *
      * @param archiveId The archive ID.
-     * @return The {@link Archive} object.
+     * Calls handler with: The {@link Archive} object.
      */
-    public Archive getArchive(String archiveId) throws OpenTokException {
-        String archive = this.client.getArchive(archiveId);
-        try {
-            return archiveReader.readValue(archive);
-        } catch (Exception e) {
-            throw new RequestException("Exception mapping json: " + e.getMessage());
-        }
-
+    public void getArchive(String archiveId, Handler<AsyncResult<Archive>> handler) {
+        this.client.getArchive(archiveId, handleResponse(handler, archiveReader));
     }
 
     /**
      * Returns a List of {@link Archive} objects, representing archives that are both
      * both completed and in-progress, for your API key. This list is limited to 1000 archives
      * starting with the first archive recorded. For a specific range of archives, call
-     * {@link #listArchives(int offset, int count)}.
+     * {@link #listArchives(int offset, int count, Handler handler)}.
      *
-     * @return A List of {@link Archive} objects.
+     * Calls handler with: A List of {@link Archive} objects.
      */
-    public ArchiveList listArchives() throws OpenTokException {
-        return listArchives(0, 1000);
+    public void listArchives(Handler<AsyncResult<ArchiveList>> handler) {
+        listArchives(0, 1000, handler);
     }
 
     /**
@@ -328,17 +347,10 @@ public class OpenTok {
      * 1 is the offset of the archive that started prior to the most recent archive.
      * @param count The number of archives to be returned. The maximum number of archives returned
      * is 1000.
-     * @return A List of {@link Archive} objects.
+     * Calls handler with: A List of {@link Archive} objects.
      */
-    public ArchiveList listArchives(int offset, int count) throws OpenTokException {
-        String archives = this.client.getArchives(offset, count);
-        try {
-            return archiveListReader.readValue(archives);
-        } catch (JsonProcessingException e) {
-            throw new RequestException("Exception mapping json: " + e.getMessage());
-        } catch (IOException e) {
-            throw new RequestException("Exception mapping json: " + e.getMessage());
-        }
+    public void listArchives(int offset, int count, Handler<AsyncResult<ArchiveList>> handler) {
+        this.client.getArchives(offset, count, handleResponse(handler, archiveListReader));
     }
 
     /***
@@ -347,15 +359,10 @@ public class OpenTok {
      *
      * @param sessionId
      *            The sessionId for which archives should be retrieved.
-     * @return A List of {@link Archive} objects.
+     * Calls handler with: A List of {@link Archive} objects.
      */
-    public ArchiveList listArchives(String sessionId) throws RequestException {
-        String archives = this.client.getArchives(sessionId);
-        try {
-            return archiveListReader.readValue(archives);
-        } catch (Exception e) {
-            throw new RequestException("Exception mapping json: " + e.getMessage());
-        }
+    public void listArchives(String sessionId, Handler<AsyncResult<ArchiveList>> handler) {
+        this.client.getArchives(sessionId, handleResponse(handler, archiveListReader));
     }
 
     /**
@@ -373,33 +380,29 @@ public class OpenTok {
      * For more information on archiving, see the
      * <a href="https://tokbox.com/opentok/tutorials/archiving/">OpenTok archiving</a>
      * programming guide.
-     * 
+     *
      * @param sessionId The session ID of the OpenTok session to archive.
-     * 
+     *
      * @param properties This ArchiveProperties object defines options for the archive.
      *
-     * @return The Archive object. This object includes properties defining the archive, including the archive ID.
+     * Calls handler with: The Archive object. This object includes properties defining the archive, including the archive ID.
      */
-    public Archive startArchive(String sessionId, ArchiveProperties properties) throws OpenTokException {
-        if (sessionId == null || sessionId == "") {
-            throw new InvalidArgumentException("Session not valid");
-        }
-        // TODO: do validation on sessionId and name
-        String archive = this.client.startArchive(sessionId, properties);
-        try {
-            return archiveReader.readValue(archive);
-        } catch (Exception e) {
-            throw new RequestException("Exception mapping json: " + e.getMessage());
+    public void startArchive(String sessionId, ArchiveProperties properties, Handler<AsyncResult<Archive>> handler) {
+        if (sessionId == null || "".equals(sessionId)) {
+            handler.handle(Future.failedFuture(new InvalidArgumentException("Session not valid")));
+        } else {
+            // TODO: do validation on sessionId and name
+            this.client.startArchive(sessionId, properties, handleResponse(handler, archiveReader));
         }
     }
 
-	public Archive startArchive(String sessionId) throws OpenTokException {
-        return startArchive(sessionId, new ArchiveProperties.Builder().build());
+    public void startArchive(String sessionId, Handler<AsyncResult<Archive>> handler) {
+        startArchive(sessionId, new ArchiveProperties.Builder().build(), handler);
     }
 
-    public Archive startArchive(String sessionId, String name) throws OpenTokException {
+    public void startArchive(String sessionId, String name, Handler<AsyncResult<Archive>> handler) {
         ArchiveProperties properties = new ArchiveProperties.Builder().name(name).build();
-        return startArchive(sessionId, properties);
+        startArchive(sessionId, properties, handler);
     }
 
     /**
@@ -409,18 +412,12 @@ public class OpenTok {
      * from the session being archived.
      *
      * @param archiveId The archive ID of the archive you want to stop recording.
-     * @return The Archive object corresponding to the archive being stopped.
+     * Calls handler with: The Archive object corresponding to the archive being stopped.
      */
-    public Archive stopArchive(String archiveId) throws OpenTokException {
-
-        String archive = this.client.stopArchive(archiveId);
-        try {
-            return archiveReader.readValue(archive);
-        } catch (Exception e) {
-            throw new RequestException("Exception mapping json: " + e.getMessage());
-        }
+    public void stopArchive(String archiveId, Handler<AsyncResult<Archive>> handler) {
+        this.client.stopArchive(archiveId, handleResponse(handler, archiveReader));
     }
-    
+
     /**
      * Deletes an OpenTok archive.
      * <p>
@@ -430,53 +427,56 @@ public class OpenTok {
      *
      * @param archiveId The archive ID of the archive you want to delete.
      */
-    public void deleteArchive(String archiveId) throws OpenTokException {
-        this.client.deleteArchive(archiveId);
+    public void deleteArchive(String archiveId, Handler<AsyncResult<Void>> handler) {
+        this.client.deleteArchive(archiveId, response -> {
+            if (response.failed()) {
+                handler.handle(Future.failedFuture(response.cause()));
+            } else {
+                try {
+                    handler.handle(Future.succeededFuture());
+                } catch (Exception e) {
+                    handler.handle(Future.failedFuture(new RequestException("Exception mapping json: " + e.getMessage(), e)));
+                }
+            }
+        });
     }
-    
+
     public static class Builder {
         private int apiKey;
         private String apiSecret;
         private String apiUrl;
-        private Proxy proxy;
-        private ProxyAuthScheme proxyAuthScheme;
-        private String principal;
-        private String password;
-        
-        public Builder(int apiKey, String apiSecret) {
+        private Vertx vertx;
+        private HttpClientOptions httpClientOptions;
+
+        public Builder(int apiKey, String apiSecret, Vertx vertx) {
             this.apiKey = apiKey;
             this.apiSecret = apiSecret;
+            this.vertx = vertx;
         }
-        
+
         public Builder apiUrl(String apiUrl) {
             this.apiUrl = apiUrl;
             return this;
         }
-        
-        public Builder proxy(Proxy proxy) {
-            proxy(proxy, null, null, null);
+
+        public Builder httpClientOptions(HttpClientOptions httpClientOptions) {
+            this.httpClientOptions = httpClientOptions;
             return this;
         }
-        
-        public Builder proxy(Proxy proxy, ProxyAuthScheme proxyAuthScheme, String principal, String password) {
-            this.proxy = proxy;
-            this.proxyAuthScheme = proxyAuthScheme;
-            this.principal = principal;
-            this.password = password;
-            return this;
-        }
-        
+
         public OpenTok build() {
-            HttpClient.Builder clientBuilder = new HttpClient.Builder(apiKey, apiSecret);
-            
+            OpenTokHttpClient.Builder clientBuilder = new OpenTokHttpClient.Builder(apiKey, apiSecret, this.vertx);
+
             if (this.apiUrl != null) {
                 clientBuilder.apiUrl(this.apiUrl);
             }
-            if (this.proxy != null) {
-                clientBuilder.proxy(this.proxy, proxyAuthScheme, principal, password);
+
+            if (this.httpClientOptions == null) {
+                return new OpenTok(this.apiKey, this.apiSecret, this.vertx, clientBuilder.build());
+            } else {
+                clientBuilder.httpClientOptions(this.httpClientOptions);
+                return new OpenTok(this.apiKey, this.apiSecret, this.vertx, clientBuilder.build());
             }
-            
-            return new OpenTok(this.apiKey, this.apiSecret, clientBuilder.build());
         }
     }
 

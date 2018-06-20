@@ -18,11 +18,12 @@ import java.util.stream.Collectors;
 
 import com.opentok.exception.InvalidArgumentException;
 import com.opentok.util.Crypto;
+import io.vertx.core.Handler;
 import org.apache.commons.codec.binary.Base64;
 
 
 /**
-* Represents an OpenTok session. Use the {@link OpenTok#createSession(SessionProperties properties)}
+* Represents an OpenTok session. Use the {@link OpenTok#createSession(SessionProperties properties, Handler)}
 * method to create an OpenTok session. Use the {@link #getSessionId()} method of the Session object
 * to get the session ID.
 */

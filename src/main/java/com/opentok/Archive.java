@@ -9,6 +9,7 @@ package com.opentok;
 
 import com.fasterxml.jackson.annotation.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.vertx.core.Handler;
 
 /**
 * Represents an archive of an OpenTok session.
@@ -180,7 +181,7 @@ public class Archive {
      * set to Status.AVAILABLE; for other archives, (including archives with the status of
      * Status.UPLOADED) this method returns null. The download URL is obfuscated, and the file
      * is only available from the URL for 10 minutes. To generate a new URL, call the
-     * {@link com.opentok.OpenTok#listArchives()} or {@link com.opentok.OpenTok#getArchive(String)}
+     * {@link com.opentok.OpenTok#listArchives(Handler)} or {@link com.opentok.OpenTok#getArchive(String, Handler)}
      * method.
      */
     public String getUrl() {

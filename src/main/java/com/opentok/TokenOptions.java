@@ -8,6 +8,7 @@
 package com.opentok;
 
 import com.opentok.exception.InvalidArgumentException;
+import io.vertx.core.Handler;
 
 import java.util.List;
 
@@ -16,7 +17,7 @@ import java.util.List;
  * {@link OpenTok#generateToken(String sessionId, TokenOptions tokenOptions)} method
  * and the {@link Session#generateToken(TokenOptions tokenOptions)} method.
  *
- * @see OpenTok#createSession(com.opentok.SessionProperties properties)
+ * @see OpenTok#createSession(com.opentok.SessionProperties properties, Handler)
  */
 public class TokenOptions {
 

@@ -8,6 +8,7 @@
 package com.opentok;
 
 import com.opentok.exception.InvalidArgumentException;
+import io.vertx.core.Handler;
 import org.apache.commons.validator.routines.InetAddressValidator;
 
 import java.util.ArrayList;
@@ -18,9 +19,9 @@ import java.util.Map;
 
 /**
  * Defines values for the <code>properties</code> parameter of the
- * {@link OpenTok#createSession(SessionProperties)} method.
+ * {@link OpenTok#createSession(SessionProperties, Handler)} method.
  *
- * @see OpenTok#createSession(com.opentok.SessionProperties properties)
+ * @see OpenTok#createSession(com.opentok.SessionProperties properties, Handler)
  */
 public class SessionProperties {
 
