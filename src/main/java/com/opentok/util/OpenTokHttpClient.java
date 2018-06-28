@@ -33,6 +33,7 @@ import java.util.Map.Entry;
 public class OpenTokHttpClient {
 
     private final String apiUrl;
+    private final int apiPort;
     private final String apiSecret;
     private final String authHeader = "X-OPENTOK-AUTH";
     private final int apiKey;
@@ -43,6 +44,7 @@ public class OpenTokHttpClient {
     private OpenTokHttpClient(Builder builder) {
         this.apiKey = builder.apiKey;
         this.apiUrl = builder.apiUrl;
+        this.apiPort = 443;
         this.apiSecret = builder.apiSecret;
         this.vertx = builder.vertx;
         this.httpClient = builder.httpClient;
@@ -59,7 +61,7 @@ public class OpenTokHttpClient {
                 }
             }
 
-            HttpClientRequest request = this.httpClient.post(this.apiUrl, url, response -> {
+            HttpClientRequest request = this.httpClient.post(this.apiPort, this.apiUrl, url, response -> {
                 try {
                     response.exceptionHandler(t ->
                             handler.handle(Future.failedFuture(new RequestException("Could not create an OpenTok Session", t)))
@@ -87,7 +89,7 @@ public class OpenTokHttpClient {
         try {
             String url = "/v2/project/" + this.apiKey + "/archive/" + archiveId;
 
-            HttpClientRequest request = this.httpClient.get(this.apiUrl, url, response -> {
+            HttpClientRequest request = this.httpClient.get(this.apiPort, this.apiUrl, url, response -> {
                 try {
                     response.exceptionHandler(t -> {
                         Throwable error;
@@ -153,7 +155,7 @@ public class OpenTokHttpClient {
 
     private void getArchivesImpl(String url, Handler<AsyncResult<String>> handler) {
         try {
-            HttpClientRequest request = this.httpClient.get(this.apiUrl, url, response -> {
+            HttpClientRequest request = this.httpClient.get(this.apiPort, this.apiUrl, url, response -> {
                 response.exceptionHandler(t -> {
                     Throwable error;
                     switch (response.statusCode()) {
@@ -212,7 +214,7 @@ public class OpenTokHttpClient {
                 handler.handle(Future.failedFuture(new OpenTokException("Could not start an OpenTok Archive. The JSON body encoding failed.", e)));
             }
 
-            HttpClientRequest request = this.httpClient.post(this.apiUrl, url, response -> {
+            HttpClientRequest request = this.httpClient.post(this.apiPort, this.apiUrl, url, response -> {
                 try {
                     response.exceptionHandler(t -> {
                         Throwable error;
@@ -265,7 +267,7 @@ public class OpenTokHttpClient {
         try {
             String url = "/v2/project/" + this.apiKey + "/archive/" + archiveId + "/stop";
 
-            HttpClientRequest request = this.httpClient.post(this.apiUrl, url, response -> {
+            HttpClientRequest request = this.httpClient.post(this.apiPort, this.apiUrl, url, response -> {
                 try {
                     response.exceptionHandler(t -> {
                         Throwable error;
@@ -323,7 +325,7 @@ public class OpenTokHttpClient {
         try {
             String url = "/v2/project/" + this.apiKey + "/archive/" + archiveId;
 
-            HttpClientRequest request = this.httpClient.delete(this.apiUrl, url, response -> {
+            HttpClientRequest request = this.httpClient.delete(this.apiPort, this.apiUrl, url, response -> {
                 try {
                     response.exceptionHandler(t -> {
                         Throwable error;
