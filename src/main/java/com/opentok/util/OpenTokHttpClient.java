@@ -50,7 +50,7 @@ public class OpenTokHttpClient {
 
     public void createSession(Map<String, Collection<String>> params, Handler<AsyncResult<String>> handler) {
         try {
-            String url = this.apiUrl + "/session/create";
+            String url = "/session/create";
             Map<String, List<String>> paramsWithList = null;
             if (params != null) {
                 paramsWithList = new HashMap<>();
@@ -59,7 +59,7 @@ public class OpenTokHttpClient {
                 }
             }
 
-            HttpClientRequest request = this.httpClient.post(url, response -> {
+            HttpClientRequest request = this.httpClient.post(this.apiUrl, url, response -> {
                 try {
                     response.exceptionHandler(t ->
                             handler.handle(Future.failedFuture(new RequestException("Could not create an OpenTok Session", t)))
@@ -85,9 +85,9 @@ public class OpenTokHttpClient {
 
     public void getArchive(String archiveId, Handler<AsyncResult<String>> handler) {
         try {
-            String url = this.apiUrl + "/v2/project/" + this.apiKey + "/archive/" + archiveId;
+            String url = "/v2/project/" + this.apiKey + "/archive/" + archiveId;
 
-            HttpClientRequest request = this.httpClient.get(url, response -> {
+            HttpClientRequest request = this.httpClient.get(this.apiUrl, url, response -> {
                 try {
                     response.exceptionHandler(t -> {
                         Throwable error;
@@ -131,7 +131,7 @@ public class OpenTokHttpClient {
     }
 
     public void getArchives(int offset, int count, Handler<AsyncResult<String>> handler) {
-        String url = this.apiUrl + "/v2/project/" + this.apiKey + "/archive";
+        String url = "/v2/project/" + this.apiKey + "/archive";
         if (offset != 0 || count != 1000) {
             url += "?";
             if (offset != 0) {
@@ -146,14 +146,14 @@ public class OpenTokHttpClient {
     }
 
     public void getArchives(String sessionId, Handler<AsyncResult<String>> handler) {
-        String url = this.apiUrl + "/v2/project/" + this.apiKey + "/archive?sessionId=" + sessionId;
+        String url = "/v2/project/" + this.apiKey + "/archive?sessionId=" + sessionId;
 
         getArchivesImpl(url, handler);
     }
 
     private void getArchivesImpl(String url, Handler<AsyncResult<String>> handler) {
         try {
-            HttpClientRequest request = this.httpClient.get(url, response -> {
+            HttpClientRequest request = this.httpClient.get(this.apiUrl, url, response -> {
                 response.exceptionHandler(t -> {
                     Throwable error;
                     switch (response.statusCode()) {
@@ -190,7 +190,7 @@ public class OpenTokHttpClient {
     public void startArchive(String sessionId, ArchiveProperties properties, Handler<AsyncResult<String>> handler) {
         try {
             String requestBody = null;
-            String url = this.apiUrl + "/v2/project/" + this.apiKey + "/archive";
+            String url = "/v2/project/" + this.apiKey + "/archive";
 
             JsonNodeFactory nodeFactory = JsonNodeFactory.instance;
             ObjectNode requestJson = nodeFactory.objectNode();
@@ -212,7 +212,7 @@ public class OpenTokHttpClient {
                 handler.handle(Future.failedFuture(new OpenTokException("Could not start an OpenTok Archive. The JSON body encoding failed.", e)));
             }
 
-            HttpClientRequest request = this.httpClient.post(url, response -> {
+            HttpClientRequest request = this.httpClient.post(this.apiUrl, url, response -> {
                 try {
                     response.exceptionHandler(t -> {
                         Throwable error;
@@ -263,9 +263,9 @@ public class OpenTokHttpClient {
 
     public void stopArchive(String archiveId, Handler<AsyncResult<String>> handler) {
         try {
-            String url = this.apiUrl + "/v2/project/" + this.apiKey + "/archive/" + archiveId + "/stop";
+            String url = "/v2/project/" + this.apiKey + "/archive/" + archiveId + "/stop";
 
-            HttpClientRequest request = this.httpClient.post(url, response -> {
+            HttpClientRequest request = this.httpClient.post(this.apiUrl, url, response -> {
                 try {
                     response.exceptionHandler(t -> {
                         Throwable error;
@@ -321,9 +321,9 @@ public class OpenTokHttpClient {
 
     public void deleteArchive(String archiveId, Handler<AsyncResult<String>> handler) {
         try {
-            String url = this.apiUrl + "/v2/project/" + this.apiKey + "/archive/" + archiveId;
+            String url = "/v2/project/" + this.apiKey + "/archive/" + archiveId;
 
-            HttpClientRequest request = this.httpClient.delete(url, response -> {
+            HttpClientRequest request = this.httpClient.delete(this.apiUrl, url, response -> {
                 try {
                     response.exceptionHandler(t -> {
                         Throwable error;
