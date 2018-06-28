@@ -2,7 +2,7 @@
  * OpenTok Java SDK
  * Copyright (C) 2018 TokBox, Inc.
  * http://www.tokbox.com
- *
+ * <p>
  * Licensed under The MIT License (MIT). See LICENSE file for more information.
  */
 package com.opentok.util;
@@ -49,69 +49,76 @@ public class OpenTokHttpClient {
     }
 
     public void createSession(Map<String, Collection<String>> params, Handler<AsyncResult<String>> handler) {
-        String url = this.apiUrl + "/session/create";
-        Map<String, List<String>> paramsWithList = null;
-        if (params != null) {
-            paramsWithList = new HashMap<>();
-            for (Entry<String, Collection<String>> entry : params.entrySet()) {
-                paramsWithList.put(entry.getKey(), new ArrayList<>(entry.getValue()));
+        try {
+            String url = this.apiUrl + "/session/create";
+            Map<String, List<String>> paramsWithList = null;
+            if (params != null) {
+                paramsWithList = new HashMap<>();
+                for (Entry<String, Collection<String>> entry : params.entrySet()) {
+                    paramsWithList.put(entry.getKey(), new ArrayList<>(entry.getValue()));
+                }
             }
+
+            HttpClientRequest request = this.httpClient.post(url, response -> {
+                try {
+                    response.exceptionHandler(t ->
+                            handler.handle(Future.failedFuture(new RequestException("Could not create an OpenTok Session", t)))
+                    );
+
+                    response.bodyHandler(buffer -> handler.handle(Future.succeededFuture(buffer.toString())));
+                } catch (Throwable t) {
+                    handler.handle(Future.failedFuture(new RequestException("Could not create an OpenTok Session", t)));
+                }
+            });
+            setAuthHeaders(request, handler)
+                    .putHeader("Accept", "application/json")
+                    .end(RequestUtils.buildBodyFromParams(paramsWithList));
+        } catch (Throwable t) {
+            handler.handle(Future.failedFuture(new RequestException("Could not create an OpenTok Session", t)));
         }
-
-        HttpClientRequest request = this.httpClient.post(url, response -> {
-            try {
-                response.exceptionHandler(t ->
-                        handler.handle(Future.failedFuture(new RequestException("Could not create an OpenTok Session", t)))
-                );
-
-                response.bodyHandler(buffer -> handler.handle(Future.succeededFuture(buffer.toString())));
-            } catch (Throwable t) {
-                handler.handle(Future.failedFuture(new RequestException("Could not create an OpenTok Session", t)));
-            }
-        });
-
-        setAuthHeaders(request, handler)
-                .putHeader("Accept", "application/json")
-                .end(RequestUtils.buildBodyFromParams(paramsWithList));
     }
 
     public void getArchive(String archiveId, Handler<AsyncResult<String>> handler) {
-        String url = this.apiUrl + "/v2/project/" + this.apiKey + "/archive/" + archiveId;
+        try {
+            String url = this.apiUrl + "/v2/project/" + this.apiKey + "/archive/" + archiveId;
 
-        HttpClientRequest request = this.httpClient.get(url, response -> {
-            try {
-                response.exceptionHandler(t -> {
-                    Throwable error;
-                    switch (response.statusCode()) {
-                        case 400:
-                            error = new RequestException("Could not get an OpenTok Archive. The archiveId was invalid. " +
-                                    "archiveId: " + archiveId, t);
-                            break;
+            HttpClientRequest request = this.httpClient.get(url, response -> {
+                try {
+                    response.exceptionHandler(t -> {
+                        Throwable error;
+                        switch (response.statusCode()) {
+                            case 400:
+                                error = new RequestException("Could not get an OpenTok Archive. The archiveId was invalid. " +
+                                        "archiveId: " + archiveId, t);
+                                break;
 
-                        case 403:
-                            error = new RequestException("Could not get an OpenTok Archive. The request was not authorized.", t);
-                            break;
+                            case 403:
+                                error = new RequestException("Could not get an OpenTok Archive. The request was not authorized.", t);
+                                break;
 
-                        case 500:
-                            error = new RequestException("Could not get an OpenTok Archive. A server error occurred.", t);
-                            break;
+                            case 500:
+                                error = new RequestException("Could not get an OpenTok Archive. A server error occurred.", t);
+                                break;
 
-                        default:
-                            error = new RequestException("Could not get an OpenTok Archive. The server response was invalid." +
-                                    " response code: " + response.statusCode(), t);
-                    }
+                            default:
+                                error = new RequestException("Could not get an OpenTok Archive. The server response was invalid." +
+                                        " response code: " + response.statusCode(), t);
+                        }
 
-                    handler.handle(Future.failedFuture(error));
-                });
+                        handler.handle(Future.failedFuture(error));
+                    });
 
-                response.bodyHandler(buffer -> handler.handle(Future.succeededFuture(buffer.toString())));
-            } catch (Throwable t) {
-                handler.handle(Future.failedFuture(new RequestException("Could not create an OpenTok Session", t)));
-            }
-        });
+                    response.bodyHandler(buffer -> handler.handle(Future.succeededFuture(buffer.toString())));
+                } catch (Throwable t) {
+                    handler.handle(Future.failedFuture(new RequestException("Could not create an OpenTok Session", t)));
+                }
+            });
 
-        setAuthHeaders(request, handler)
-                .end();
+            setAuthHeaders(request, handler)
+                    .end();
+        } catch (Throwable t) {
+            handler.handle(Future.failedFuture(new RequestException("Could not create an OpenTok Session", t)));
+        }
     }
 
     public void getArchives(int offset, int count, Handler<AsyncResult<String>> handler) {
@@ -136,168 +143,17 @@ public class OpenTokHttpClient {
     }
 
     private void getArchivesImpl(String url, Handler<AsyncResult<String>> handler) {
-        HttpClientRequest request = this.httpClient.get(url, response -> {
-            response.exceptionHandler(t -> {
-                Throwable error;
-                switch (response.statusCode()) {
-                    case 403:
-                        error = new RequestException("Could not get OpenTok Archives. The request was not authorized.", t);
-                        break;
-
-                    case 500:
-                        error = new RequestException("Could not get OpenTok Archives. A server error occurred.", t);
-                        break;
-
-                    default:
-                        error = new RequestException("Could not get an OpenTok Archive. The server response was invalid." +
-                                " response code: " + response.statusCode(), t);
-                }
-
-                handler.handle(Future.failedFuture(error));
-            });
-
-            response.bodyHandler(buffer -> handler.handle(Future.succeededFuture(buffer.toString())));
-        });
-
-        setAuthHeaders(request, handler)
-                .end();
-    }
-
-    public void startArchive(String sessionId, ArchiveProperties properties, Handler<AsyncResult<String>> handler) {
-        String requestBody = null;
-        String url = this.apiUrl + "/v2/project/" + this.apiKey + "/archive";
-
-        JsonNodeFactory nodeFactory = JsonNodeFactory.instance;
-        ObjectNode requestJson = nodeFactory.objectNode();
-        requestJson.put("sessionId", sessionId);
-        requestJson.put("hasVideo", properties.hasVideo());
-        requestJson.put("hasAudio", properties.hasAudio());
-        requestJson.put("outputMode", properties.outputMode().toString());
-        if (properties.layout() != null) {
-            ObjectNode layout = requestJson.putObject("layout");
-            layout.put("type", properties.layout().getType().toString());
-            layout.put("stylesheet", properties.layout().getStylesheet());
-        }
-        if (properties.name() != null) {
-            requestJson.put("name", properties.name());
-        }
         try {
-            requestBody = new ObjectMapper().writeValueAsString(requestJson);
-        } catch (JsonProcessingException e) {
-            handler.handle(Future.failedFuture(new OpenTokException("Could not start an OpenTok Archive. The JSON body encoding failed.", e)));
-        }
-
-        HttpClientRequest request = this.httpClient.post(url, response -> {
-            try {
+            HttpClientRequest request = this.httpClient.get(url, response -> {
                 response.exceptionHandler(t -> {
                     Throwable error;
                     switch (response.statusCode()) {
                         case 403:
-                            error = new RequestException("Could not start an OpenTok Archive. The request was not authorized.", t);
-                            break;
-
-                        case 404:
-                            error = new RequestException("Could not start an OpenTok Archive. The sessionId does not exist. " +
-                                    "sessionId = " + sessionId, t);
-                            break;
-
-                        case 409:
-                            error = new RequestException("Could not start an OpenTok Archive. The session is either " +
-                                    "peer-to-peer or already recording. sessionId = " + sessionId, t);
+                            error = new RequestException("Could not get OpenTok Archives. The request was not authorized.", t);
                             break;
 
                         case 500:
-                            error = new RequestException("Could not start an OpenTok Archive. A server error occurred.", t);
-                            break;
-
-                        default:
-                            error = new RequestException("Could not start an OpenTok Archive. The server response was invalid." +
-                                    " response code: " + response.statusCode(), t);
-                    }
-
-                    handler.handle(Future.failedFuture(error));
-                });
-
-                response.bodyHandler(buffer -> handler.handle(Future.succeededFuture(buffer.toString())));
-            } catch (Throwable t) {
-                handler.handle(Future.failedFuture(new RequestException("Could not create an OpenTok Session", t)));
-            }
-        });
-
-        setAuthHeaders(request, handler)
-                .putHeader("Accept", "application/json")
-                .end(requestBody);
-    }
-
-    public void stopArchive(String archiveId, Handler<AsyncResult<String>> handler) {
-        String url = this.apiUrl + "/v2/project/" + this.apiKey + "/archive/" + archiveId + "/stop";
-
-        HttpClientRequest request = this.httpClient.post(url, response -> {
-            try {
-                response.exceptionHandler(t -> {
-                    Throwable error;
-                    switch (response.statusCode()) {
-                        case 400:
-                            // NOTE: the REST api spec talks about sessionId and action, both of which aren't required.
-                            //       see: https://github.com/opentok/OpenTok-2.0-archiving-samples/blob/master/REST-API.md#stop_archive
-                            error = new RequestException("Could not stop an OpenTok Archive.", t);
-                            break;
-
-                        case 403:
-                            error = new RequestException("Could not stop an OpenTok Archive. The request was not authorized.", t);
-                            break;
-
-                        case 404:
-                            error = new RequestException("Could not stop an OpenTok Archive. The archiveId does not exist. " +
-                                    "archiveId = " + archiveId, t);
-                            break;
-
-                        case 409:
-                            error = new RequestException("Could not stop an OpenTok Archive. The archive is not being recorded. " +
-                                    "archiveId = " + archiveId, t);
-                            break;
-
-                        case 500:
-                            error = new RequestException("Could not stop an OpenTok Archive. A server error occurred.", t);
-                            break;
-
-                        default:
-                            error = new RequestException("Could not stop an OpenTok Archive. The server response was invalid." +
-                                    " response code: " + response.statusCode(), t);
-                    }
-
-                    handler.handle(Future.failedFuture(error));
-                });
-
-                response.bodyHandler(buffer -> handler.handle(Future.succeededFuture(buffer.toString())));
-            } catch (Throwable t) {
-                handler.handle(Future.failedFuture(new RequestException("Could not create an OpenTok Session", t)));
-            }
-        });
-
-        setAuthHeaders(request, handler)
-                .end();
-    }
-
-    public void deleteArchive(String archiveId, Handler<AsyncResult<String>> handler) {
-        String url = this.apiUrl + "/v2/project/" + this.apiKey + "/archive/" + archiveId;
-
-        HttpClientRequest request = this.httpClient.delete(url, response -> {
-            try {
-                response.exceptionHandler(t -> {
-                    Throwable error;
-                    switch (response.statusCode()) {
-                        case 403:
-                            error = new RequestException("Could not delete an OpenTok Archive. The request was not authorized.", t);
-                            break;
-
-                        case 409:
-                            error = new RequestException("Could not delete an OpenTok Archive. The status was not \"uploaded\"," +
-                                    " \"available\", or \"deleted\". archiveId = " + archiveId, t);
-                            break;
-
-                        case 500:
-                            error = new RequestException("Could not delete an OpenTok Archive. A server error occurred.", t);
+                            error = new RequestException("Could not get OpenTok Archives. A server error occurred.", t);
                             break;
 
                         default:
@@ -309,13 +165,180 @@ public class OpenTokHttpClient {
                 });
 
                 response.bodyHandler(buffer -> handler.handle(Future.succeededFuture(buffer.toString())));
-            } catch (Throwable t) {
-                handler.handle(Future.failedFuture(new RequestException("Could not create an OpenTok Session", t)));
-            }
-        });
+            });
 
-        setAuthHeaders(request, handler)
-                .end();
+            setAuthHeaders(request, handler)
+                    .end();
+        } catch (Throwable t) {
+            handler.handle(Future.failedFuture(new RequestException("Could not create an OpenTok Session", t)));
+        }
+    }
+
+    public void startArchive(String sessionId, ArchiveProperties properties, Handler<AsyncResult<String>> handler) {
+        try {
+            String requestBody = null;
+            String url = this.apiUrl + "/v2/project/" + this.apiKey + "/archive";
+
+            JsonNodeFactory nodeFactory = JsonNodeFactory.instance;
+            ObjectNode requestJson = nodeFactory.objectNode();
+            requestJson.put("sessionId", sessionId);
+            requestJson.put("hasVideo", properties.hasVideo());
+            requestJson.put("hasAudio", properties.hasAudio());
+            requestJson.put("outputMode", properties.outputMode().toString());
+            if (properties.layout() != null) {
+                ObjectNode layout = requestJson.putObject("layout");
+                layout.put("type", properties.layout().getType().toString());
+                layout.put("stylesheet", properties.layout().getStylesheet());
+            }
+            if (properties.name() != null) {
+                requestJson.put("name", properties.name());
+            }
+            try {
+                requestBody = new ObjectMapper().writeValueAsString(requestJson);
+            } catch (JsonProcessingException e) {
+                handler.handle(Future.failedFuture(new OpenTokException("Could not start an OpenTok Archive. The JSON body encoding failed.", e)));
+            }
+
+            HttpClientRequest request = this.httpClient.post(url, response -> {
+                try {
+                    response.exceptionHandler(t -> {
+                        Throwable error;
+                        switch (response.statusCode()) {
+                            case 403:
+                                error = new RequestException("Could not start an OpenTok Archive. The request was not authorized.", t);
+                                break;
+
+                            case 404:
+                                error = new RequestException("Could not start an OpenTok Archive. The sessionId does not exist. " +
+                                        "sessionId = " + sessionId, t);
+                                break;
+
+                            case 409:
+                                error = new RequestException("Could not start an OpenTok Archive. The session is either " +
+                                        "peer-to-peer or already recording. sessionId = " + sessionId, t);
+                                break;
+
+                            case 500:
+                                error = new RequestException("Could not start an OpenTok Archive. A server error occurred.", t);
+                                break;
+
+                            default:
+                                error = new RequestException("Could not start an OpenTok Archive. The server response was invalid." +
+                                        " response code: " + response.statusCode(), t);
+                        }
+
+                        handler.handle(Future.failedFuture(error));
+                    });
+
+                    response.bodyHandler(buffer -> handler.handle(Future.succeededFuture(buffer.toString())));
+                } catch (Throwable t) {
+                    handler.handle(Future.failedFuture(new RequestException("Could not create an OpenTok Session", t)));
+                }
+            });
+
+            setAuthHeaders(request, handler)
+                    .putHeader("Accept", "application/json")
+                    .end(requestBody);
+        } catch (Throwable t) {
+            handler.handle(Future.failedFuture(new RequestException("Could not create an OpenTok Session", t)));
+        }
+    }
+
+    public void stopArchive(String archiveId, Handler<AsyncResult<String>> handler) {
+        try {
+            String url = this.apiUrl + "/v2/project/" + this.apiKey + "/archive/" + archiveId + "/stop";
+
+            HttpClientRequest request = this.httpClient.post(url, response -> {
+                try {
+                    response.exceptionHandler(t -> {
+                        Throwable error;
+                        switch (response.statusCode()) {
+                            case 400:
+                                // NOTE: the REST api spec talks about sessionId and action, both of which aren't required.
+                                //       see: https://github.com/opentok/OpenTok-2.0-archiving-samples/blob/master/REST-API.md#stop_archive
+                                error = new RequestException("Could not stop an OpenTok Archive.", t);
+                                break;
+
+                            case 403:
+                                error = new RequestException("Could not stop an OpenTok Archive. The request was not authorized.", t);
+                                break;
+
+                            case 404:
+                                error = new RequestException("Could not stop an OpenTok Archive. The archiveId does not exist. " +
+                                        "archiveId = " + archiveId, t);
+                                break;
+
+                            case 409:
+                                error = new RequestException("Could not stop an OpenTok Archive. The archive is not being recorded. " +
+                                        "archiveId = " + archiveId, t);
+                                break;
+
+                            case 500:
+                                error = new RequestException("Could not stop an OpenTok Archive. A server error occurred.", t);
+                                break;
+
+                            default:
+                                error = new RequestException("Could not stop an OpenTok Archive. The server response was invalid." +
+                                        " response code: " + response.statusCode(), t);
+                        }
+
+                        handler.handle(Future.failedFuture(error));
+                    });
+
+                    response.bodyHandler(buffer -> handler.handle(Future.succeededFuture(buffer.toString())));
+                } catch (Throwable t) {
+                    handler.handle(Future.failedFuture(new RequestException("Could not create an OpenTok Session", t)));
+                }
+            });
+
+            setAuthHeaders(request, handler)
+                    .end();
+        } catch (Throwable t) {
+            handler.handle(Future.failedFuture(new RequestException("Could not create an OpenTok Session", t)));
+        }
+    }
+
+    public void deleteArchive(String archiveId, Handler<AsyncResult<String>> handler) {
+        try {
+            String url = this.apiUrl + "/v2/project/" + this.apiKey + "/archive/" + archiveId;
+
+            HttpClientRequest request = this.httpClient.delete(url, response -> {
+                try {
+                    response.exceptionHandler(t -> {
+                        Throwable error;
+                        switch (response.statusCode()) {
+                            case 403:
+                                error = new RequestException("Could not delete an OpenTok Archive. The request was not authorized.", t);
+                                break;
+
+                            case 409:
+                                error = new RequestException("Could not delete an OpenTok Archive. The status was not \"uploaded\"," +
+                                        " \"available\", or \"deleted\". archiveId = " + archiveId, t);
+                                break;
+
+                            case 500:
+                                error = new RequestException("Could not delete an OpenTok Archive. A server error occurred.", t);
+                                break;
+
+                            default:
+                                error = new RequestException("Could not get an OpenTok Archive. The server response was invalid." +
+                                        " response code: " + response.statusCode(), t);
+                        }
+
+                        handler.handle(Future.failedFuture(error));
+                    });
+
+                    response.bodyHandler(buffer -> handler.handle(Future.succeededFuture(buffer.toString())));
+                } catch (Throwable t) {
+                    handler.handle(Future.failedFuture(new RequestException("Could not create an OpenTok Session", t)));
+                }
+            });
+
+            setAuthHeaders(request, handler)
+                    .end();
+        } catch (Throwable t) {
+            handler.handle(Future.failedFuture(new RequestException("Could not create an OpenTok Session", t)));
+        }
     }
 
     public void close() {
