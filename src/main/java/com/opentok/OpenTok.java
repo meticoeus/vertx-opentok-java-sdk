@@ -133,7 +133,7 @@ public class OpenTok {
      *
      * @return The token string.
      */
-    public String generateToken(String sessionId, TokenOptions tokenOptions) throws OpenTokException {
+    public String generateToken(String sessionId, TokenOptions tokenOptions) throws InvalidArgumentException, OpenTokException {
         List<String> sessionIdParts = null;
         if (sessionId == null || "".equals(sessionId)) {
             throw new InvalidArgumentException("Session not valid");
@@ -189,7 +189,7 @@ public class OpenTok {
      *
      * @see #generateToken(String, TokenOptions)
      */
-    public String generateToken(String sessionId) throws OpenTokException {
+    public String generateToken(String sessionId) throws InvalidArgumentException, OpenTokException {
         return generateToken(sessionId, new TokenOptions.Builder().build());
     }
 
