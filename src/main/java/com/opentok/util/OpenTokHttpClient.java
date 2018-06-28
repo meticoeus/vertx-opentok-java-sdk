@@ -399,7 +399,9 @@ public class OpenTokHttpClient {
                 this.apiUrl = DefaultApiUrl.DEFAULT_API_URI;
             }
             if (this.httpClientOptions == null) {
-                this.httpClient = vertx.createHttpClient();
+                this.httpClient = vertx.createHttpClient(new HttpClientOptions()
+                        .setSsl(true)
+                );
             } else {
                 this.httpClient = vertx.createHttpClient(this.httpClientOptions);
             }
