@@ -83,7 +83,7 @@ public class Session {
      *
      * @see #generateToken(TokenOptions tokenOptions)
      */
-    public String generateToken() throws OpenTokException {
+    public String generateToken() throws InvalidArgumentException, OpenTokException {
         // NOTE: maybe there should be a static object for the defaultTokenOptions?
         return this.generateToken(new TokenOptions.Builder().build());
     }
@@ -104,7 +104,7 @@ public class Session {
      *
      * @return The token string.
      */
-    public String generateToken(TokenOptions tokenOptions) throws OpenTokException {
+    public String generateToken(TokenOptions tokenOptions) throws InvalidArgumentException, OpenTokException {
         // Token format
         //
         // | ------------------------------  tokenStringBuilder ----------------------------- |
