@@ -70,6 +70,11 @@ public class OpenTokHttpClient {
                     handler.handle(Future.failedFuture(new RequestException("Could not create an OpenTok Session", t)));
                 }
             });
+
+            request.exceptionHandler(t ->
+                    handler.handle(Future.failedFuture(new RequestException("Could not create an OpenTok Session", t)))
+            );
+
             setAuthHeaders(request, handler)
                     .putHeader("Accept", "application/json")
                     .end(RequestUtils.buildBodyFromParams(paramsWithList));
@@ -110,14 +115,18 @@ public class OpenTokHttpClient {
 
                     response.bodyHandler(buffer -> handler.handle(Future.succeededFuture(buffer.toString())));
                 } catch (Throwable t) {
-                    handler.handle(Future.failedFuture(new RequestException("Could not create an OpenTok Session", t)));
+                    handler.handle(Future.failedFuture(new RequestException("Could not get an OpenTok Archive. The server response was invalid.", t)));
                 }
             });
+
+            request.exceptionHandler(t ->
+                    handler.handle(Future.failedFuture(new RequestException("Could not get an OpenTok Archive. The server response was invalid.", t)))
+            );
 
             setAuthHeaders(request, handler)
                     .end();
         } catch (Throwable t) {
-            handler.handle(Future.failedFuture(new RequestException("Could not create an OpenTok Session", t)));
+            handler.handle(Future.failedFuture(new RequestException("Could not get an OpenTok Archive.", t)));
         }
     }
 
@@ -167,10 +176,14 @@ public class OpenTokHttpClient {
                 response.bodyHandler(buffer -> handler.handle(Future.succeededFuture(buffer.toString())));
             });
 
+            request.exceptionHandler(t ->
+                    handler.handle(Future.failedFuture(new RequestException("Could not get an OpenTok Archive. The server response was invalid.", t)))
+            );
+
             setAuthHeaders(request, handler)
                     .end();
         } catch (Throwable t) {
-            handler.handle(Future.failedFuture(new RequestException("Could not create an OpenTok Session", t)));
+            handler.handle(Future.failedFuture(new RequestException("Could not get an OpenTok Archive.", t)));
         }
     }
 
@@ -232,15 +245,19 @@ public class OpenTokHttpClient {
 
                     response.bodyHandler(buffer -> handler.handle(Future.succeededFuture(buffer.toString())));
                 } catch (Throwable t) {
-                    handler.handle(Future.failedFuture(new RequestException("Could not create an OpenTok Session", t)));
+                    handler.handle(Future.failedFuture(new RequestException("Could not start an OpenTok Archive. The server response was invalid.", t)));
                 }
             });
+
+            request.exceptionHandler(t ->
+                    handler.handle(Future.failedFuture(new RequestException("Could not start an OpenTok Archive. The server response was invalid.", t)))
+            );
 
             setAuthHeaders(request, handler)
                     .putHeader("Accept", "application/json")
                     .end(requestBody);
         } catch (Throwable t) {
-            handler.handle(Future.failedFuture(new RequestException("Could not create an OpenTok Session", t)));
+            handler.handle(Future.failedFuture(new RequestException("Could not start an OpenTok Archive.", t)));
         }
     }
 
@@ -287,14 +304,18 @@ public class OpenTokHttpClient {
 
                     response.bodyHandler(buffer -> handler.handle(Future.succeededFuture(buffer.toString())));
                 } catch (Throwable t) {
-                    handler.handle(Future.failedFuture(new RequestException("Could not create an OpenTok Session", t)));
+                    handler.handle(Future.failedFuture(new RequestException("Could not stop an OpenTok Archive. The server response was invalid.", t)));
                 }
             });
+
+            request.exceptionHandler(t ->
+                    handler.handle(Future.failedFuture(new RequestException("Could not stop an OpenTok Archive. The server response was invalid.", t)))
+            );
 
             setAuthHeaders(request, handler)
                     .end();
         } catch (Throwable t) {
-            handler.handle(Future.failedFuture(new RequestException("Could not create an OpenTok Session", t)));
+            handler.handle(Future.failedFuture(new RequestException("Could not stop an OpenTok Archive.", t)));
         }
     }
 
@@ -330,14 +351,18 @@ public class OpenTokHttpClient {
 
                     response.bodyHandler(buffer -> handler.handle(Future.succeededFuture(buffer.toString())));
                 } catch (Throwable t) {
-                    handler.handle(Future.failedFuture(new RequestException("Could not create an OpenTok Session", t)));
+                    handler.handle(Future.failedFuture(new RequestException("Could not get an OpenTok Archive. The server response was invalid.", t)));
                 }
             });
+
+            request.exceptionHandler(t ->
+                    handler.handle(Future.failedFuture(new RequestException("Could not get an OpenTok Archive. The server response was invalid.", t)))
+            );
 
             setAuthHeaders(request, handler)
                     .end();
         } catch (Throwable t) {
-            handler.handle(Future.failedFuture(new RequestException("Could not create an OpenTok Session", t)));
+            handler.handle(Future.failedFuture(new RequestException("Could not get an OpenTok Archive.", t)));
         }
     }
 
